@@ -195,7 +195,7 @@ lock_acquire(struct lock *lock)
     }
 
     KASSERT(lock->lk_acquired == false);
-    lock->lk_thread = &curthread;
+    lock->lk_thread = curthread;
     lock->lk_acquired = true;
 
 	/* Call this (atomically) once the lock is acquired */
@@ -227,8 +227,9 @@ bool
 lock_do_i_hold(struct lock *lock)
 {
     KASSERT(lock != NULL);
-	if(lock->lk_acquired == true && lock->lk_thread == curthread){
+    if(lock->lk_acquired == true && lock->lk_thread == curthread){
         return true;
+    }
     return false;
 }
 
