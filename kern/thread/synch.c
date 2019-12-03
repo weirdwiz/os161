@@ -185,7 +185,7 @@ lock_acquire(struct lock *lock)
 
 	KASSERT(lock != NULL);
 
-    spinlock_acquire(lock->lk_lock);
+    spinlock_acquire(&lock->lk_lock);
 	/* Call this (atomically) before waiting for a lock */
 	HANGMAN_WAIT(&curthread->t_hangman, &lock->lk_hangman);
 
