@@ -164,7 +164,6 @@ lock_create(const char *name)
 
     spinlock_init(&lock->lk_lock);
     lock->lk_acquired = false;
-    lock->lk_thread = NULL;
 	return lock;
 }
 
@@ -172,8 +171,10 @@ void
 lock_destroy(struct lock *lock)
 {
 	KASSERT(lock != NULL);
-
+	KASSERT(lock->lk_acquired == false);
 	// add stuff here as needed
+	spinlock_cleanup(&lock->lk_lock);
+	wchan_destroy(lock->lk_wchan);
 
 	kfree(lock->lk_name);
 	kfree(lock);
@@ -190,14 +191,13 @@ lock_acquire(struct lock *lock)
 	HANGMAN_WAIT(&curthread->t_hangman, &lock->lk_hangman);
 
 	// Write this
-    while (lock->lk_acquired == true && lock->lk_thread != NULL){
+    while (lock->lk_acquired == true){
         wchan_sleep(lock->lk_wchan, &lock->lk_lock);
     }
 
     KASSERT(lock->lk_acquired == false);
-    lock->lk_thread = curthread;
     lock->lk_acquired = true;
-
+	lock->lk_thread = curthread;
 	/* Call this (atomically) once the lock is acquired */
 	HANGMAN_ACQUIRE(&curthread->t_hangman, &lock->lk_hangman);
     spinlock_release(&lock->lk_lock);
@@ -207,30 +207,29 @@ void
 lock_release(struct lock *lock)
 {
     KASSERT(lock != NULL);
+	KASSERT(lock->lk_acquired = true);
+    KASSERT(lock->lk_thread == curthread); 
     
-    if(lock_do_i_hold(lock) == true){
-        spinlock_acquire(&lock->lk_lock);
+    spinlock_acquire(&lock->lk_lock);
+    lock->lk_acquired = false;
 
-        lock->lk_thread = NULL;
-        lock->lk_acquired = true;
-        KASSERT(lock->lk_acquired == true);
-        wchan_wakeone(lock->lk_wchan, &lock->lk_lock);
+    KASSERT(lock->lk_acquired == false);
 
-	    HANGMAN_RELEASE(&curthread->t_hangman, &lock->lk_hangman);
-
-        spinlock_release(&lock->lk_lock); 
-    }
-
+	lock->lk_thread = NULL;
+    wchan_wakeone(lock->lk_wchan, &lock->lk_lock);
+	HANGMAN_RELEASE(&curthread->t_hangman, &lock->lk_hangman);
+    spinlock_release(&lock->lk_lock); 
 }
 
 bool
 lock_do_i_hold(struct lock *lock)
 {
-    KASSERT(lock != NULL);
-    if(lock->lk_acquired == true && lock->lk_thread == curthread){
-        return true;
-    }
-    return false;
+	KASSERT(lock != NULL);
+	if(lock->lk_acquired == true && lock->lk_thread == curthread) {
+		return true;
+	} else {
+		return false;
+	}
 }
 
 ////////////////////////////////////////////////////////////

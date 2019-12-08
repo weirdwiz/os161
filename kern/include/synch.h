@@ -81,7 +81,7 @@ struct lock {
         // Need to store the information about the holder of the lock
     	struct wchan *lk_wchan;
         struct spinlock lk_lock;
-        struct thread *lk_thread;
+	struct thread *lk_thread;
         bool lk_acquired;
 };
 
